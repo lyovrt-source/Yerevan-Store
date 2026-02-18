@@ -1,228 +1,206 @@
+
 <!DOCTYPE html>
 <html lang="hy">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Yerevan Store | Contact Manager</title>
+    <title>Yerevan Store | Official</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #0b0f1a; color: white; scroll-behavior: smooth; }
-        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        /* Գույները փոխված են լոգոյի մանուշակագույնի */
+        :root { --brand-purple: #bc13fe; --brand-pink: #ff00de; --dark-bg: #0f021a; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--dark-bg); color: white; scroll-behavior: smooth; overflow-x: hidden; }
+        
+        /* Moving Neon Border */
+        .product-card { position: relative; background: #1a032d; border-radius: 40px; overflow: hidden; padding: 1px; }
+        .product-card::before {
+            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: conic-gradient(transparent, transparent, transparent, var(--brand-purple), var(--brand-pink));
+            animation: spin 4s linear infinite;
+        }
+        .product-inner { position: relative; background: #1a032d; border-radius: 39px; padding: 16px; height: 100%; z-index: 1; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .logo-wrapper { position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; }
+        .logo-ring {
+            position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 3px solid transparent;
+            border-top-color: var(--brand-purple); border-bottom-color: var(--brand-pink);
+            animation: spin 3s linear infinite; box-shadow: 0 0 15px var(--brand-purple);
+        }
+        .logo-img { width: 300px; height: 300px; object-fit: contain; z-index: 10; border-radius: 50%; }
+
+        .glass { background: rgba(255, 255, 255, 0.02); backdrop-filter: blur(15px); border: 1px solid rgba(188, 19, 254, 0.2); }
+        .btn-brand { background: linear-gradient(45deg, var(--brand-purple), var(--brand-pink)); box-shadow: 0 0 15px rgba(188, 19, 254, 0.4); }
+        .text-brand { color: var(--brand-purple); }
+        
+        .page-content { display: none; }
+        .active-page { display: block; animation: fadeIn 0.5s ease; }
+        .slider-container { display: flex; transition: transform 0.5s ease; height: 100%; }
+        
+        input, textarea { background: #250540 !important; color: white !important; border: 1px solid rgba(188, 19, 254, 0.3) !important; outline: none; border-radius: 12px; padding: 10px; }
+        .color-dot { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+        .color-dot.active { border-color: white; transform: scale(1.2); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .admin-section { display: none; }
         .is-admin .admin-section { display: block; }
-        .old-price { text-decoration: line-through; color: #64748b; font-size: 0.9em; }
     </style>
 </head>
 <body class="pb-32">
 
-    <header class="fixed top-0 w-full z-50 glass py-4 px-6 flex justify-between items-center">
-        <div class="text-2xl font-black tracking-tighter text-blue-500 uppercase italic">Yerevan<span class="text-white">Store</span></div>
-        <div id="header-auth">
-            <button onclick="openLogin()" class="text-[10px] font-bold tracking-widest uppercase opacity-50 hover:opacity-100">Portal</button>
+    <button onclick="openLogin()" class="absolute top-4 left-4 z-[100] text-[8px] opacity-20">Admin</button>
+
+    <header class="w-full py-8 flex flex-col items-center gap-6">
+        <div class="logo-wrapper">
+            <div class="logo-ring"></div>
+            <img src="https://i.postimg.cc/JnSKQJhx/file-00000000889872439c436fff99d31681.png" class="logo-img">
         </div>
+        <nav class="flex gap-6 bg-white/5 px-8 py-3 rounded-full border border-white/10">
+            <button onclick="showPage('shop')" id="nav-shop" class="text-xs font-bold uppercase text-brand">Տեսականի</button>
+            <button onclick="showPage('news')" id="nav-news" class="text-xs font-bold uppercase opacity-50">Նորություններ</button>
+        </nav>
+        <div id="header-auth"></div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6 pt-32">
+    <main id="page-shop" class="page-content active-page max-w-7xl mx-auto px-6">
         <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8"></div>
     </main>
 
-    <div id="order-modal" class="fixed inset-0 bg-black/95 z-[110] hidden items-center justify-center p-6 backdrop-blur-md">
-        <div class="glass p-8 rounded-[40px] max-w-sm w-full text-center border-blue-500/20 shadow-2xl">
-            <h2 class="text-xl font-black mb-2 uppercase">Պատվիրել</h2>
-            <p id="order-product-name" class="text-blue-400 mb-8 font-bold"></p>
-            <div class="flex flex-col gap-3">
-                <a id="link-ws" href="#" target="_blank" class="bg-[#25D366] py-4 rounded-2xl font-bold uppercase hover:scale-105 transition">WhatsApp</a>
-                <a id="link-vb" href="#" target="_blank" class="bg-[#7360f2] py-4 rounded-2xl font-bold uppercase hover:scale-105 transition">Viber</a>
-                <a id="link-call" href="#" class="bg-white text-black py-4 rounded-2xl font-bold uppercase hover:scale-105 transition">Զանգահարել</a>
-            </div>
-            <button onclick="closeOrder()" class="mt-6 text-gray-500 text-xs uppercase underline">Փակել</button>
+    <main id="page-news" class="page-content max-w-2xl mx-auto px-6">
+        <div id="news-feed" class="flex flex-col gap-10"></div>
+    </main>
+
+    <div class="admin-section fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] w-full max-w-xl px-4">
+        <div id="add-btn-container" class="flex justify-center gap-2 bg-[#1a022b] p-2 rounded-3xl border border-[#bc13fe]/50">
+            <button id="admin-add-product" onclick="showForm('product')" class="flex-1 bg-white/5 py-4 rounded-2xl font-black text-[10px] uppercase">+ Ապրանք</button>
+            <button id="admin-add-news" onclick="showForm('news')" class="hidden flex-1 bg-white/5 py-4 rounded-2xl font-black text-[10px] uppercase">+ Փոստ</button>
+            <button onclick="showForm('settings')" class="px-5 bg-white/5 rounded-2xl">⚙️</button>
+            <button onclick="logout()" class="px-4 bg-red-600/20 text-red-500 rounded-2xl text-[9px] font-black uppercase">Exit</button>
+        </div>
+        <div id="admin-forms-box" class="hidden bg-[#0d0216] rounded-[35px] p-6 mt-4 relative max-h-[75vh] overflow-y-auto border border-[#bc13fe] shadow-2xl">
+            <button onclick="hideForms()" class="absolute top-4 right-4 bg-white/10 w-8 h-8 rounded-full flex items-center justify-center text-xs">✕</button>
+            <div id="form-content"></div>
         </div>
     </div>
 
-    <div class="admin-section fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] w-full max-w-4xl px-4">
-        <div id="add-btn-container" class="flex justify-center gap-4">
-            <button onclick="showForm('product')" class="bg-blue-600 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">+ Ապրանք</button>
-            <button onclick="showForm('settings')" class="bg-white/10 text-white px-6 py-4 rounded-2xl font-black uppercase text-xs shadow-xl active:scale-95 transition-all">⚙️ Կոնտակտներ</button>
-        </div>
-
-        <div id="admin-form-product" class="hidden glass rounded-[35px] p-8 mt-4 border-blue-500/30">
-            <h2 id="form-title" class="text-xl font-extrabold uppercase text-blue-400 mb-6">Ապրանքի Տվյալներ</h2>
-            <input type="hidden" id="edit-id">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="p-name" placeholder="Անուն" class="bg-white/5 border border-white/10 p-4 rounded-xl outline-none">
-                <input type="text" id="p-cat" placeholder="Տեսակը" class="bg-white/5 border border-white/10 p-4 rounded-xl outline-none">
-                <input type="number" id="p-price" placeholder="Գինը" class="bg-white/5 border border-white/10 p-4 rounded-xl outline-none">
-                <input type="number" id="p-sale" placeholder="Զեղչված գին" class="bg-white/5 border border-white/10 p-4 rounded-xl outline-none text-green-400 font-bold">
-                <input type="text" id="p-img" placeholder="Նկարի հղում (URL)" class="w-full md:col-span-2 bg-white/5 border border-white/10 p-4 rounded-xl outline-none">
-            </div>
-            <div class="mt-6 flex gap-3">
-                <button onclick="saveProduct()" class="flex-1 bg-blue-600 py-4 rounded-xl font-black uppercase">Պահպանել</button>
-                <button onclick="hideForms()" class="bg-white/10 px-6 rounded-xl font-bold uppercase">X</button>
-            </div>
-        </div>
-
-        <div id="admin-form-settings" class="hidden glass rounded-[35px] p-8 mt-4 border-white/20">
-            <h2 class="text-xl font-extrabold uppercase text-white mb-6">Կոնտակտների Կառավարում</h2>
-            <div class="space-y-4">
-                <div class="flex items-center gap-3">
-                    <span class="w-24 text-[10px] font-bold text-green-500 uppercase">WhatsApp:</span>
-                    <input type="text" id="set-ws" placeholder="374XXXXXXXX" class="flex-1 bg-white/5 border border-white/10 p-3 rounded-xl outline-none focus:border-green-500">
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="w-24 text-[10px] font-bold text-purple-500 uppercase">Viber:</span>
-                    <input type="text" id="set-vb" placeholder="374XXXXXXXX" class="flex-1 bg-white/5 border border-white/10 p-3 rounded-xl outline-none focus:border-purple-500">
-                </div>
-                <div class="flex items-center gap-3">
-                    <span class="w-24 text-[10px] font-bold text-white uppercase">Call:</span>
-                    <input type="text" id="set-call" placeholder="374XXXXXXXX" class="flex-1 bg-white/5 border border-white/10 p-3 rounded-xl outline-none focus:border-white">
-                </div>
-            </div>
-            <div class="mt-8 flex gap-3">
-                <button onclick="saveSettings()" class="flex-1 bg-blue-600 py-4 rounded-xl font-black uppercase text-xs tracking-widest">Պահպանել Բոլորը</button>
-                <button onclick="hideForms()" class="bg-white/10 px-6 rounded-xl font-bold uppercase">X</button>
-            </div>
+    <div id="login-modal" class="fixed inset-0 bg-black/95 z-[300] hidden flex items-center justify-center p-6">
+        <div class="relative glass p-10 rounded-[40px] max-w-xs w-full text-center border-2 border-[#bc13fe]">
+            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-500">✕</button>
+            <input type="password" id="pass" placeholder="PASSWORD" class="w-full text-center text-3xl mb-8">
+            <button onclick="login()" class="btn-brand w-full py-4 rounded-2xl font-bold">ՄՈՒՏՔ</button>
         </div>
     </div>
 
-    <div id="login-modal" class="fixed inset-0 bg-black/95 z-[100] hidden items-center justify-center p-6 backdrop-blur-md">
-        <div class="glass p-10 rounded-[40px] max-w-sm w-full">
-            <input type="password" id="pass" placeholder="Գաղտնաբառ" class="w-full bg-white/5 border border-white/10 p-4 rounded-2xl mb-4 text-center text-xl outline-none">
-            <button onclick="login()" class="w-full bg-blue-600 py-4 rounded-2xl font-bold uppercase transition">Մուտք</button>
-            <button onclick="closeLogin()" class="w-full mt-4 text-gray-500 text-[10px] uppercase text-center">Փակել</button>
-        </div>
-    </div>
+    <div id="order-modal" class="fixed inset-0 bg-black/90 z-[200] hidden flex items-center justify-center p-6"><div class="glass p-8 rounded-[40px] max-w-sm w-full text-center border-2 border-[#bc13fe]"><h2 id="order-product-name" class="text-xl font-black mb-6 uppercase text-brand"></h2><div class="flex flex-col gap-3"><a id="link-ws" href="#" target="_blank" class="bg-[#25D366] py-4 rounded-2xl font-bold uppercase text-white">WhatsApp</a><a id="link-vb" href="#" target="_blank" class="bg-[#7360f2] py-4 rounded-2xl font-bold uppercase text-white">Viber</a><a id="link-call" href="#" class="bg-white text-black py-4 rounded-2xl font-bold uppercase">Զանգ</a></div><button onclick="closeOrder()" class="mt-6 text-gray-500 text-xs uppercase">Փակել</button></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyBQfUwdyV1G7zYJ5LMM8o9be0Qt2b08Cs8",
-            authDomain: "yerevan-store.firebaseapp.com",
-            projectId: "yerevan-store",
-            storageBucket: "yerevan-store.firebasestorage.app",
-            messagingSenderId: "400884279906",
-            appId: "1:400884279906:web:2c8ec504f6002be6c33f3b"
-        };
-
+        const firebaseConfig = { apiKey: "AIzaSyBQfUwdyV1G7zYJ5LMM8o9be0Qt2b08Cs8", authDomain: "yerevan-store.firebaseapp.com", projectId: "yerevan-store", storageBucket: "yerevan-store.firebasestorage.app", messagingSenderId: "400884279906", appId: "1:400884279906:web:2c8ec504f6002be6c33f3b" };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const colRef = collection(db, "products");
-        let contacts = { ws: "37400000000", vb: "37400000000", call: "37400000000" };
+        const isAdmin = sessionStorage.getItem('is_admin') === 'true';
+        let contacts = { ws: "", vb: "", call: "", msg: "Բարև ձեզ, ցանկանում եմ պատվիրել՝ " };
+        let editingId = null;
+        let selectedColor = '#ffffff';
+        const colors = ['#ffffff', '#bc13fe', '#ff00de', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
-        // LOAD SETTINGS
-        onSnapshot(doc(db, "settings", "contact"), (doc) => {
-            if (doc.exists()) {
-                contacts = doc.data();
-                document.getElementById('set-ws').value = contacts.ws || "";
-                document.getElementById('set-vb').value = contacts.vb || "";
-                document.getElementById('set-call').value = contacts.call || "";
-            }
-        });
+        if(isAdmin) document.body.classList.add('is-admin');
 
-        // RENDER PRODUCTS
-        onSnapshot(colRef, (snapshot) => {
-            const grid = document.getElementById('product-grid');
-            const isAdmin = sessionStorage.getItem('is_admin') === 'true';
-            document.body.classList.toggle('is-admin', isAdmin);
-            if(isAdmin) document.getElementById('header-auth').innerHTML = `<button onclick="logout()" class="text-[10px] font-black uppercase text-red-500 border border-red-500/30 px-4 py-2 rounded-full">Ելք (Admin)</button>`;
+        onSnapshot(doc(db, "settings", "contact"), (d) => { if(d.exists()) contacts = d.data(); });
 
-            grid.innerHTML = snapshot.docs.map(d => {
+        onSnapshot(query(collection(db, "products"), orderBy("date", "desc")), (snap) => {
+            document.getElementById('product-grid').innerHTML = snap.docs.map(d => {
                 const p = d.data();
-                const hasSale = p.sale && p.sale > 0;
+                const imgs = [p.img1, p.img2, p.img3, p.img4, p.img5].filter(i => i && i.trim() !== "");
                 return `
-                    <div class="glass rounded-[40px] p-4 group">
-                        <div class="h-72 rounded-[30px] overflow-hidden mb-4 bg-gray-900">
-                            <img src="${p.image}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                        </div>
-                        <div class="px-2 text-center sm:text-left">
-                            <span class="text-blue-500 text-[10px] font-black uppercase italic">${p.category}</span>
-                            <h3 class="text-lg font-bold">${p.name}</h3>
-                            <div class="mt-4 flex items-center justify-center sm:justify-start gap-3">
-                                <span class="text-2xl font-black">${(hasSale ? p.sale : p.price).toLocaleString()} ֏</span>
-                                ${hasSale ? `<span class="old-price">${p.price.toLocaleString()} ֏</span>` : ''}
+                    <div class="product-card">
+                        <div class="product-inner">
+                            <div class="relative h-72 rounded-[30px] overflow-hidden mb-6 bg-black">
+                                <div id="slider-${d.id}" class="slider-container">${imgs.map(i => `<img src="${i}" class="w-full h-full object-cover flex-shrink-0">`).join('')}</div>
+                                ${imgs.length > 1 ? `<div class="absolute inset-0 flex justify-between items-center px-2 pointer-events-none"><button onclick="moveSlider('${d.id}', -1)" class="pointer-events-auto bg-black/40 w-8 h-8 rounded-full border border-white/10 text-[10px]">←</button><button onclick="moveSlider('${d.id}', 1)" class="pointer-events-auto bg-black/40 w-8 h-8 rounded-full border border-white/10 text-[10px]">→</button></div>` : ''}
                             </div>
-                            <button onclick="openOrder('${p.name}')" class="w-full mt-6 bg-white text-black py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-600 hover:text-white transition shadow-lg">Պատվիրել</button>
+                            <h3 class="text-xl font-bold px-2 mb-1">${p.name}</h3>
+                            <p class="text-gray-400 text-[11px] px-2 mb-3 line-clamp-2">${p.desc || ''}</p>
+                            ${p.gift ? `<div class="flex items-center gap-2 px-3 py-2 mb-4 bg-pink-500/10 rounded-2xl border border-pink-500/20"><span class="text-sm">🎁</span><span class="text-[10px] font-bold text-pink-400 uppercase tracking-tighter">${p.gift}</span></div>` : ''}
+                            <div class="flex items-center gap-3 mb-4 px-2 mt-auto"><span class="text-2xl font-black text-brand">${(p.sale > 0 ? p.sale : p.price).toLocaleString()} ֏</span>${p.sale > 0 ? `<span class="opacity-30 line-through text-xs">${p.price.toLocaleString()} ֏</span>` : ''}</div>
+                            <button onclick="openOrder('${p.name}')" class="btn-brand w-full py-4 rounded-2xl font-black uppercase text-[10px] text-white">Պատվիրել</button>
+                            ${isAdmin ? `<div class="flex gap-2 mt-4 pt-4 border-t border-white/5"><button onclick='editProduct("${d.id}", ${JSON.stringify(p)})' class="flex-1 text-[9px] font-bold uppercase text-brand">Խմբագրել</button><button onclick="deleteDocItem('products','${d.id}')" class="text-[9px] font-bold uppercase text-red-500">Ջնջել</button></div>` : ''}
                         </div>
-                        ${isAdmin ? `
-                            <div class="flex gap-2 mt-4 pt-4 border-t border-white/10">
-                                <button onclick="window.editMode('${d.id}', '${p.name}', ${p.price}, ${p.sale || 0}, '${p.image}', '${p.category}')" class="flex-1 text-[10px] font-bold uppercase opacity-40 hover:opacity-100 transition">Խմբագրել</button>
-                                <button onclick="window.deleteItem('${d.id}')" class="text-[10px] font-bold uppercase text-red-500 opacity-40 hover:opacity-100 transition">Ջնջել</button>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         });
 
-        // SETTINGS SAVE
-        window.saveSettings = async () => {
-            const data = {
-                ws: document.getElementById('set-ws').value,
-                vb: document.getElementById('set-vb').value,
-                call: document.getElementById('set-call').value
-            };
-            await setDoc(doc(db, "settings", "contact"), data);
-            alert("Կոնտակտները թարմացվեցին:");
-            hideForms();
-        };
+        onSnapshot(query(collection(db, "news"), orderBy("date", "desc")), (snap) => {
+            document.getElementById('news-feed').innerHTML = snap.docs.map(d => {
+                const n = d.data();
+                let mediaHtml = "";
+                if(n.media) {
+                    if(n.media.includes('youtube.com') || n.media.includes('youtu.be')) {
+                        const vidId = n.media.includes('watch?v=') ? n.media.split('v=')[1].split('&')[0] : n.media.split('/').pop();
+                        mediaHtml = `<iframe class="w-full aspect-video rounded-2xl" src="https://www.youtube.com/embed/${vidId}" frameborder="0" allowfullscreen></iframe>`;
+                    } else if(n.media.includes('tiktok.com')) {
+                        mediaHtml = `<iframe class="w-full h-[500px] rounded-2xl" src="https://www.tiktok.com/embed/v2/${n.media.split('/video/')[1]?.split('?')[0]}" frameborder="0"></iframe>`;
+                    } else { mediaHtml = `<img src="${n.media}" class="w-full rounded-2xl border border-pink-500/20">`; }
+                }
+                return `<div class="glass rounded-[35px] p-6 shadow-xl"><p class="mb-4 text-lg font-bold leading-relaxed" style="color:${n.color}">${n.text}</p>${mediaHtml}${isAdmin ? `<div class="flex gap-4 mt-4 border-t border-white/5 pt-4"><button onclick='editNews("${d.id}", ${JSON.stringify(n)})' class="text-brand text-[9px] font-bold uppercase">Խմբագրել</button><button onclick="deleteDocItem('news','${d.id}')" class="text-red-500 text-[9px] font-bold uppercase">Ջնջել</button></div>` : ''}</div>`;
+            }).join('');
+        });
 
-        // ORDER LOGIC
-        window.openOrder = (name) => {
-            document.getElementById('order-product-name').innerText = name;
-            const text = encodeURIComponent(`Բարև ձեզ, ես ցանկանում եմ պատվիրել ${name} ապրանքը:`);
-            document.getElementById('link-ws').href = `https://wa.me/${contacts.ws}?text=${text}`;
-            document.getElementById('link-vb').href = `viber://chat?number=${contacts.vb}&draft=${text}`;
-            document.getElementById('link-call').href = `tel:+${contacts.call}`;
-            document.getElementById('order-modal').classList.remove('hidden');
-        };
-        window.closeOrder = () => document.getElementById('order-modal').classList.add('hidden');
-
-        // PRODUCT ACTIONS
-        window.saveProduct = async () => {
-            const id = document.getElementById('edit-id').value;
-            const data = {
-                name: document.getElementById('p-name').value,
-                category: document.getElementById('p-cat').value,
-                price: parseInt(document.getElementById('p-price').value),
-                sale: parseInt(document.getElementById('p-sale').value) || 0,
-                image: document.getElementById('p-img').value
-            };
-            if(id) await updateDoc(doc(db, "products", id), data);
-            else await addDoc(colRef, data);
-            hideForms();
-        };
-
-        window.deleteItem = async (id) => { if(confirm("Ջնջե՞լ:")) await deleteDoc(doc(db, "products", id)); };
-        
-        window.editMode = (id, name, price, sale, img, cat) => {
-            document.getElementById('edit-id').value = id;
-            document.getElementById('p-name').value = name;
-            document.getElementById('p-cat').value = cat;
-            document.getElementById('p-price').value = price;
-            document.getElementById('p-sale').value = sale;
-            document.getElementById('p-img').value = img;
-            showForm('product');
-        };
-
-        window.showForm = (type) => {
-            hideForms();
-            document.getElementById(`admin-form-${type}`).classList.remove('hidden');
+        window.showForm = (type, data = null) => {
+            const container = document.getElementById('form-content');
+            document.getElementById('admin-forms-box').classList.remove('hidden');
             document.getElementById('add-btn-container').classList.add('hidden');
+            editingId = data ? data.id : null;
+
+            if(type === 'product') {
+                container.innerHTML = `<h3 class="text-brand font-bold uppercase text-[10px] mb-4">Ապրանք</h3><div class="space-y-3"><input type="text" id="p-name" value="${data?data.name:''}" placeholder="Անուն" class="w-full"><textarea id="p-desc" placeholder="Նկարագրություն" class="w-full h-20">${data?data.desc:''}</textarea><input type="text" id="p-gift" value="${data?data.gift||'':''}" placeholder="🎁 Նվեր"><div class="grid grid-cols-2 gap-2"><input type="number" id="p-price" value="${data?data.price:''}" placeholder="Գին"><input type="number" id="p-sale" value="${data?data.sale:''}" placeholder="Զեղչ"></div>${[1,2,3,4,5].map(i => `<input type="text" id="p-img${i}" value="${data?data['img'+i]||'':''}" placeholder="Նկար ${i} URL" class="w-full">`).join('')}</div><button onclick="saveProduct()" class="btn-brand w-full py-4 rounded-xl font-bold uppercase mt-6">Պահպանել</button>`;
+            } else if(type === 'news') {
+                container.innerHTML = `<h3 class="text-brand font-bold uppercase text-[10px] mb-4">Փոստ</h3><div class="space-y-3"><textarea id="n-text" placeholder="Տեքստ..." class="w-full h-24">${data?data.text:''}</textarea><div class="flex gap-2 mb-2">${colors.map(c => `<div onclick="selectColor('${c}', this)" class="color-dot ${data?.color===c?'active':''}" style="background:${c}"></div>`).join('')}</div><input type="text" id="n-media" value="${data?data.media:''}" placeholder="Link (Img, TikTok, YouTube)" class="w-full"></div><button onclick="saveNews()" class="btn-brand w-full py-4 rounded-xl font-bold uppercase mt-6">${editingId?'Թարմացնել':'Հրապարակել'}</button>`;
+                if(data?.color) selectedColor = data.color;
+            } else if(type === 'settings') {
+                container.innerHTML = `<h3 class="text-brand font-bold uppercase text-[10px] mb-4">Կոնտակտներ</h3><div class="space-y-3"><input type="text" id="set-call" value="${contacts.call||''}" placeholder="Հեռախոս" class="w-full"><input type="text" id="set-ws" value="${contacts.ws||''}" placeholder="WhatsApp"><input type="text" id="set-vb" value="${contacts.vb||''}" placeholder="Viber"><textarea id="set-msg" placeholder="Հաղորդագրության տեքստը..." class="w-full h-20">${contacts.msg||''}</textarea></div><button onclick="saveSettings()" class="btn-brand w-full py-4 rounded-xl font-bold uppercase mt-6">Թարմացնել</button>`;
+            }
         };
 
-        window.hideForms = () => {
-            document.getElementById('admin-form-product').classList.add('hidden');
-            document.getElementById('admin-form-settings').classList.add('hidden');
-            document.getElementById('add-btn-container').classList.remove('hidden');
-            document.getElementById('edit-id').value = "";
-        };
+        window.selectColor = (c, el) => { selectedColor = c; document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active')); el.classList.add('active'); document.getElementById('n-text').style.color = c; };
+        window.saveProduct = async () => { const data = { name: document.getElementById('p-name').value, desc: document.getElementById('p-desc').value, gift: document.getElementById('p-gift').value, price: parseInt(document.getElementById('p-price').value) || 0, sale: parseInt(document.getElementById('p-sale').value) || 0, img1: document.getElementById('p-img1').value, img2: document.getElementById('p-img2').value, img3: document.getElementById('p-img3').value, img4: document.getElementById('p-img4').value, img5: document.getElementById('p-img5').value, date: new Date() }; if(editingId) await updateDoc(doc(db, "products", editingId), data); else await addDoc(collection(db, "products"), data); hideForms(); };
+        window.saveNews = async () => { const data = { text: document.getElementById('n-text').value, media: document.getElementById('n-media').value, color: selectedColor, date: new Date() }; if(editingId) await updateDoc(doc(db, "news", editingId), data); else await addDoc(collection(db, "news"), data); hideForms(); };
+        window.saveSettings = async () => { await setDoc(doc(db, "settings", "contact"), { call: document.getElementById('set-call').value, ws: document.getElementById('set-ws').value, vb: document.getElementById('set-vb').value, msg: document.getElementById('set-msg').value }); hideForms(); };
+        window.editProduct = (id, p) => showForm('product', {id, ...p});
+        window.editNews = (id, n) => showForm('news', {id, ...n});
+        window.hideForms = () => { document.getElementById('admin-forms-box').classList.add('hidden'); document.getElementById('add-btn-container').classList.remove('hidden'); editingId = null; };
+        window.deleteDocItem = async (c, id) => { if(confirm("Ջնջե՞լ")) await deleteDoc(doc(db, c, id)); };
+        window.moveSlider = (id, dir) => { const el = document.getElementById(`slider-${id}`); const count = el.children.length; window.sliders = window.sliders || {}; window.sliders[id] = ((window.sliders[id] || 0) + dir + count) % count; el.style.transform = `translateX(-${window.sliders[id] * 100}%)`; };
         
-        window.login = () => { if(document.getElementById('pass').value === "1234") { sessionStorage.setItem('is_admin', 'true'); location.reload(); } };
+        window.login = async () => {
+            const enteredPass = document.getElementById('pass').value;
+            const loginBtn = document.querySelector('#login-modal button');
+            loginBtn.innerText = "Checking...";
+            loginBtn.disabled = true;
+            try {
+                const authDoc = await getDoc(doc(db, "admin", "auth"));
+                if (authDoc.exists() && authDoc.data().password === enteredPass) {
+                    sessionStorage.setItem('is_admin', 'true');
+                    location.reload();
+                } else {
+                    alert("Wrong Password!");
+                    loginBtn.innerText = "ՄՈՒՏՔ";
+                    loginBtn.disabled = false;
+                }
+            } catch (error) {
+                alert("Database Error!");
+                loginBtn.innerText = "ՄՈՒՏՔ";
+                loginBtn.disabled = false;
+            }
+        };
+
         window.logout = () => { sessionStorage.clear(); location.reload(); };
         window.openLogin = () => document.getElementById('login-modal').classList.remove('hidden');
-        window.closeLogin = () => document.getElementById('login-modal').classList.add('hidden');
+        window.showPage = (p) => { document.querySelectorAll('.page-content').forEach(el => el.classList.remove('active-page')); document.getElementById(`page-${p}`).classList.add('active-page'); document.getElementById('nav-shop').classList.toggle('text-brand', p==='shop'); document.getElementById('nav-news').classList.toggle('text-brand', p==='news'); if(isAdmin){ document.getElementById('admin-add-product').classList.toggle('hidden', p!=='shop'); document.getElementById('admin-add-news').classList.toggle('hidden', p!=='news'); } };
+        window.openOrder = (name) => { document.getElementById('order-product-name').innerText = name; const fullMsg = encodeURIComponent(contacts.msg + name); document.getElementById('link-ws').href = `https://wa.me/${contacts.ws}?text=${fullMsg}`; document.getElementById('link-vb').href = `viber://chat?number=${contacts.vb}&draft=${fullMsg}`; document.getElementById('link-call').href = `tel:+${contacts.call}`; document.getElementById('order-modal').classList.remove('hidden'); };
+        window.closeOrder = () => document.getElementById('order-modal').classList.add('hidden');
     </script>
 </body>
 </html>
