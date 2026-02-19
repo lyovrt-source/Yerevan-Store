@@ -98,6 +98,39 @@
         body.is-at-bottom #admin-trigger { opacity: 1; pointer-events: auto; }
         .media-container iframe, .media-container img { width: 100%; border-radius: 15px; margin-top: 10px; }
         .section-divider { width: 100%; height: 1px; background: linear-gradient(90deg, transparent, var(--brand-purple), transparent); margin: 25px 0; }
+
+        .neon-contact-btn {
+            background: #111;
+            border: 2px solid var(--brand-purple);
+            color: white;
+            padding: 12px 35px;
+            border-radius: 50px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 13px;
+            cursor: pointer;
+            box-shadow: 0 0 15px var(--brand-purple);
+            transition: 0.3s;
+            animation: pulse-glow 2s infinite;
+        }
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 5px var(--brand-purple); }
+            50% { box-shadow: 0 0 20px var(--brand-pink); }
+            100% { box-shadow: 0 0 5px var(--brand-purple); }
+        }
+        #social-links-middle {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out, margin 0.4s;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+        #social-links-middle.open {
+            max-height: 100px;
+            margin-top: 20px;
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -133,8 +166,8 @@
 
     <main id="page-home" class="page-content active-page max-w-4xl mx-auto px-6">
         <section class="mt-8 text-center">
-            <h2 class="text-xs font-black tracking-[4px] text-[#bc13fe] uppercase mb-6">Կապ մեզ հետ</h2>
-            <div class="flex justify-center gap-4" id="social-links-middle"></div>
+            <button onclick="document.getElementById('social-links-middle').classList.toggle('open')" class="neon-contact-btn">Կապ մեզ հետ</button>
+            <div id="social-links-middle"></div>
             <div class="section-divider"></div>
         </section>
 
@@ -231,7 +264,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const isAdmin = sessionStorage.getItem('is_admin') === 'true';
-        let contacts = { ws: "", vb: "", call: "", msg: "Բարև ձեզ, ուզում եմ պատվիրել՝ ", tiktok: "", insta: "", tg: "" };
+        let contacts = { ws: "", vb: "", call: "", msg: "Բարև ձեզ, ուզում եմ պատվիրել՝ ", tiktok: "", insta: "", tg: "", offerIds: "" };
         let categories = ['Բոլորը'];
         let currentCategory = 'Բոլորը';
         let editingId = null;
@@ -251,6 +284,7 @@
                 contacts = d.data(); 
                 renderSocialLinks();
                 document.getElementById('header-phone-link').href = `tel:+${contacts.call}`;
+                updateDailyOffers();
             }
         });
 
@@ -320,16 +354,27 @@
             const all = snap.docs.map(d => ({id: d.id, data: d.data()}));
             window.allProductsList = all;
             renderProducts();
-            const today = new Date().toDateString();
-            let offerIds = JSON.parse(localStorage.getItem('daily_offer_ids'));
-            if(!offerIds || localStorage.getItem('daily_offer_date') !== today) {
-                offerIds = all.sort(() => 0.5 - Math.random()).slice(0, 3).map(p => p.id);
-                localStorage.setItem('daily_offer_ids', JSON.stringify(offerIds));
-                localStorage.setItem('daily_offer_date', today);
-            }
-            const offerGrid = document.getElementById('daily-offer-grid');
-            if(offerGrid) offerGrid.innerHTML = all.filter(p => offerIds.includes(p.id)).map(p => createProductCard(p.id, p.data, true)).join('');
+            updateDailyOffers();
         });
+
+        function updateDailyOffers() {
+            if(!window.allProductsList) return;
+            const offerGrid = document.getElementById('daily-offer-grid');
+            if(!offerGrid) return;
+            
+            let ids = contacts.offerIds ? contacts.offerIds.split(',').map(i => i.trim()).filter(i => i !== "") : [];
+            if(ids.length === 0) {
+                const today = new Date().toDateString();
+                let storedIds = JSON.parse(localStorage.getItem('daily_offer_ids'));
+                if(!storedIds || localStorage.getItem('daily_offer_date') !== today) {
+                    storedIds = window.allProductsList.sort(() => 0.5 - Math.random()).slice(0, 3).map(p => p.id);
+                    localStorage.setItem('daily_offer_ids', JSON.stringify(storedIds));
+                    localStorage.setItem('daily_offer_date', today);
+                }
+                ids = storedIds;
+            }
+            offerGrid.innerHTML = window.allProductsList.filter(p => ids.includes(p.id)).map(p => createProductCard(p.id, p.data, true)).join('');
+        }
 
         function renderProducts() {
             const grid = document.getElementById('product-grid');
@@ -392,7 +437,18 @@
             document.getElementById('add-btn-container').classList.add('hidden');
             editingId = data ? data.id : null;
             if(type === 'product') {
-                container.innerHTML = `<h3 class="mb-4 text-xs font-black">Ապրանք</h3><div class="space-y-3"><select id="p-cat" class="w-full">${categories.map(c => `<option value="${c}" ${data?.category===c?'selected':''}>${c}</option>`).join('')}</select><input type="text" id="p-name" value="${data?data.name:''}" placeholder="Անուն"><textarea id="p-desc" placeholder="Նկարագրություն" class="w-full h-20">${data?data.desc:''}</textarea><input type="text" id="p-gift" value="${data?data.gift||'':''}" placeholder="Նվեր"><div class="grid grid-cols-2 gap-2"><input type="number" id="p-price" value="${data?data.price:''}" placeholder="Գին"><input type="number" id="p-sale" value="${data?data.sale:''}" placeholder="Զեղչ"></div>${[1,2,3,4,5].map(i => `<input type="text" id="p-img${i}" value="${data?data['img'+i]||'':''}" placeholder="Image ${i}">`).join('')}</div><button onclick="saveProduct()" class="btn-brand w-full py-4 rounded-xl mt-6 font-bold uppercase">Save</button>`;
+                container.innerHTML = `
+                    <h3 class="mb-4 text-xs font-black">Ապրանք</h3>
+                    <div class="space-y-3">
+                        <select id="p-cat" class="w-full">${categories.map(c => `<option value="${c}" ${data?.category===c?'selected':''}>${c}</option>`).join('')}</select>
+                        <input type="text" id="p-name" value="${data?data.name:''}" placeholder="Անուն">
+                        <textarea id="p-desc" placeholder="Նկարագրություն" class="w-full h-20">${data?data.desc:''}</textarea>
+                        <input type="text" id="p-gift" value="${data?data.gift||'':''}" placeholder="Նվեր">
+                        <div class="grid grid-cols-2 gap-2"><input type="number" id="p-price" value="${data?data.price:''}" placeholder="Գին"><input type="number" id="p-sale" value="${data?data.sale:''}" placeholder="Զեղչ"></div>
+                        ${[1,2,3,4,5].map(i => `<input type="text" id="p-img${i}" value="${data?data['img'+i]||'':''}" placeholder="Image ${i}">`).join('')}
+                        ${data ? `<button onclick="makeDailyOffer('${data.id}')" class="w-full py-3 bg-[#bc13fe]/20 text-[#bc13fe] border border-[#bc13fe] rounded-xl font-bold text-[10px] uppercase">⭐ Սարքել օրվա առաջարկ</button>` : ''}
+                    </div>
+                    <button onclick="saveProduct()" class="btn-brand w-full py-4 rounded-xl mt-6 font-bold uppercase">Save</button>`;
             } else if(type === 'news') {
                 container.innerHTML = `<h3>Blog Post</h3><textarea id="n-text" class="w-full h-32" placeholder="Տեքստ...">${data?data.text:''}</textarea><input type="text" id="n-media" value="${data?data.media:''}" placeholder="Media Link"><button onclick="saveNews()" class="btn-brand w-full py-4 rounded-xl mt-4 font-bold uppercase">Post</button>`;
             } else if(type === 'categories') {
@@ -410,6 +466,18 @@
             }
         };
 
+        window.makeDailyOffer = async (id) => {
+            let currentIds = contacts.offerIds ? contacts.offerIds.split(',').map(i => i.trim()).filter(i => i !== "") : [];
+            if(!currentIds.includes(id)) {
+                currentIds.unshift(id);
+                if(currentIds.length > 3) currentIds.pop();
+                await updateDoc(doc(db,"settings","contact"), { offerIds: currentIds.join(',') });
+                alert("Ավելացվեց օրվա առաջարկների մեջ");
+            } else {
+                alert("Այս ապրանքն արդեն օրվա առաջարկ է");
+            }
+        };
+
         window.saveProduct = async () => { const data = { category: document.getElementById('p-cat').value, name: document.getElementById('p-name').value, desc: document.getElementById('p-desc').value, gift: document.getElementById('p-gift').value, price: parseInt(document.getElementById('p-price').value) || 0, sale: parseInt(document.getElementById('p-sale').value) || 0, img1: document.getElementById('p-img1').value, img2: document.getElementById('p-img2').value, img3: document.getElementById('p-img3').value, img4: document.getElementById('p-img4').value, img5: document.getElementById('p-img5').value, date: new Date() }; if(editingId) await updateDoc(doc(db,"products",editingId),data); else await addDoc(collection(db,"products"),data); hideForms(); };
         window.saveSettings = async () => { await setDoc(doc(db,"settings","contact"), { 
             call: document.getElementById('set-call').value, 
@@ -418,7 +486,8 @@
             insta: document.getElementById('set-insta').value,
             tiktok: document.getElementById('set-tiktok').value,
             tg: document.getElementById('set-tg').value,
-            msg: document.getElementById('set-msg').value 
+            msg: document.getElementById('set-msg').value,
+            offerIds: contacts.offerIds || ""
         }); hideForms(); };
         window.saveNews = async () => { const data = { text: document.getElementById('n-text').value, media: document.getElementById('n-media').value, date: new Date() }; if(editingId) await updateDoc(doc(db,"news",editingId),data); else await addDoc(collection(db,"news"),data); hideForms(); };
         window.addCategory = async () => { const n = document.getElementById('new-cat-name').value; if(n){ await setDoc(doc(db,"settings","categories"), {list:[...categories.filter(c=>c!=='Բոլորը'), n]}); showForm('categories'); } };
@@ -435,7 +504,11 @@
                 return `<div class="glass p-6 rounded-[35px]">
                     <div class="text-sm">${n.text}</div>
                     <div class="media-container">${n.media.includes('youtube') ? `<iframe src="${n.media.replace('watch?v=','embed/')}"></iframe>` : `<img src="${n.media}">`}</div>
-                    ${isAdmin ? `<button onclick='editNews("${d.id}", ${JSON.stringify(n)})' class="text-[#bc13fe] text-[10px] mt-4">Edit</button>` : ''}
+                    ${isAdmin ? `
+                    <div class="flex gap-4 mt-4">
+                        <button onclick='editNews("${d.id}", ${JSON.stringify(n)})' class="text-[#bc13fe] text-[10px]">Edit</button>
+                        <button onclick="deleteDocItem('news','${d.id}')" class="text-red-500 text-[10px]">Delete</button>
+                    </div>` : ''}
                 </div>`;
             }).join('');
         });
