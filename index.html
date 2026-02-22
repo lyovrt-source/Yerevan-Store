@@ -48,7 +48,7 @@
             border-radius: 50%; border: 2px solid var(--brand-pink); object-fit: cover;
         }
 
-        .product-card { position: relative; background: #1a032d; border-radius: 30px; overflow: hidden; padding: 1px; }
+        .product-card { position: relative; background: #1a032d; border-radius: 30px; overflow: hidden; padding: 1px; transition: transform 0.3s; }
         .product-card::before {
             content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
             background: conic-gradient(transparent, transparent, transparent, var(--brand-purple), var(--brand-pink));
@@ -114,8 +114,8 @@
             50% { box-shadow: 0 0 20px var(--brand-pink); }
             100% { box-shadow: 0 0 5px var(--brand-purple); }
         }
-        #social-links-middle { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, margin 0.4s; display: flex; justify-content: center; gap: 16px; }
-        #social-links-middle.open { max-height: 100px; margin-top: 20px; }
+        #social-links-middle { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out, margin 0.4s; display: flex; justify-content: center; flex-wrap: wrap; gap: 16px; }
+        #social-links-middle.open { max-height: 250px; margin-top: 20px; }
 
         #status-tablet {
             display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
@@ -139,7 +139,7 @@
         </div>
 
         <div class="search-wrapper">
-            <input type="text" class="search-input" placeholder="Որոնել..." oninput="handleSearch(this.value)">
+            <input type="text" class="search-input" placeholder="Որոնել..." oninput="handleGlobalSearch(this.value)">
         </div>
 
         <button onclick="openCart()" id="cart-btn-header" class="phone-circle-btn">
@@ -293,14 +293,16 @@
     <div id="login-modal" class="fixed inset-0 bg-[#000] z-[9999] hidden flex items-center justify-center">
         <div class="p-10 rounded-[40px] max-w-xs w-full text-center border-2 border-[#bc13fe] bg-[#111]">
             <button onclick="closeLogin()" class="mb-5 text-gray-500 text-xl cursor-pointer">✕ Փակել</button>
-            <input type="password" id="pass" placeholder="PASSWORD" class="w-full text-center text-3xl mb-8 border-b border-[#bc13fe] bg-transparent outline-none py-2 text-white">
-            <button onclick="login()" class="btn-brand w-full py-5 rounded-2xl font-bold text-white uppercase">ՄՈՒՏՔ</button>
+            <input type="email" id="login-email" placeholder="Էլ․ փոստ" class="w-full text-center text-xl mb-4 border-b border-[#bc13fe] bg-transparent outline-none py-2 text-white">
+            <input type="password" id="login-pass" placeholder="Գաղտնաբառ" class="w-full text-center text-xl mb-8 border-b border-[#bc13fe] bg-transparent outline-none py-2 text-white">
+            <button onclick="login()" id="login-btn-text" class="btn-brand w-full py-5 rounded-2xl font-bold text-white uppercase">ՄՈՒՏՔ</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, query, orderBy, updateDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = { 
             apiKey: "AIzaSyBQfUwdyV1G7zYJ5LMM8o9be0Qt2b08Cs8", 
@@ -312,7 +314,7 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const isAdmin = sessionStorage.getItem('is_admin') === 'true';
+        const auth = getAuth(app);
 
         let contacts = { ws: "", vb: "", call: "", msg: "", tiktok: "", insta: "", tg: "", offerIds: "", extraText: "", carPrice: 0, postPrice: 0 };
         let categories = ['Բոլորը'];
@@ -324,7 +326,16 @@
         const TG_TOKEN = "8385103912:AAFmpwYKar06qTX8kubAPNcpElRp3_KAnYI";
         const TG_CHAT_ID = "-1003781452050";
 
-        if(isAdmin) document.body.classList.add('is-admin');
+        // Auth state observer
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.body.classList.add('is-admin');
+                window.isAdmin = true;
+            } else {
+                document.body.classList.remove('is-admin');
+                window.isAdmin = false;
+            }
+        });
 
         window.addEventListener('scroll', () => {
             if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) document.body.classList.add('is-at-bottom');
@@ -334,21 +345,29 @@
         onSnapshot(doc(db, "settings", "contact"), (d) => { 
             if(d.exists()) { 
                 contacts = { ...contacts, ...d.data() }; 
-                renderSocialLinks();
-                updateDailyOffers();
+                window.renderSocialLinks();
+                window.updateDailyOffers();
             }
         });
 
         onSnapshot(doc(db, "settings", "categories"), (d) => {
             categories = d.exists() ? ['Բոլորը', ...d.data().list] : ['Բոլորը'];
-            renderCategoryBar();
+            window.renderCategoryBar();
         });
 
         onSnapshot(query(collection(db, "products"), orderBy("date", "desc")), (snap) => {
             window.allProductsList = snap.docs.map(d => ({id: d.id, data: d.data()}));
-            renderProducts();
-            updateDailyOffers();
+            window.renderProducts();
+            window.updateDailyOffers();
         });
+
+        window.handleGlobalSearch = (val) => {
+            const queryText = val.toLowerCase().trim();
+            if(queryText.length > 0 && document.getElementById('page-home').classList.contains('active-page')) {
+                window.showPage('shop');
+            }
+            window.renderProducts(queryText);
+        };
 
         window.renderSocialLinks = () => {
             const middle = document.getElementById('social-links-middle');
@@ -360,9 +379,10 @@
             if(cartExtra) cartExtra.innerText = contacts.extraText || "";
             
             let html = '';
-            if(contacts.tiktok) html += `<a href="${contacts.tiktok}" target="_blank" class="soc-btn"><i class="fab fa-tiktok"></i><span>TikTok</span></a>`;
-            if(contacts.insta) html += `<a href="${contacts.insta}" target="_blank" class="soc-btn"><i class="fab fa-instagram"></i><span>Insta</span></a>`;
+            if(contacts.call) html += `<a href="tel:+${contacts.call}" class="soc-btn"><i class="fas fa-phone-alt"></i><span>Զանգել</span></a>`;
             if(contacts.ws) html += `<a href="https://wa.me/${contacts.ws}" target="_blank" class="soc-btn"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>`;
+            if(contacts.insta) html += `<a href="${contacts.insta}" target="_blank" class="soc-btn"><i class="fab fa-instagram"></i><span>Insta</span></a>`;
+            if(contacts.tiktok) html += `<a href="${contacts.tiktok}" target="_blank" class="soc-btn"><i class="fab fa-tiktok"></i><span>TikTok</span></a>`;
             if(contacts.tg) html += `<a href="${contacts.tg}" target="_blank" class="soc-btn"><i class="fab fa-telegram"></i><span>Telegram</span></a>`;
             
             if(middle) middle.innerHTML = html;
@@ -380,7 +400,7 @@
             else { postContainer.classList.add('hidden'); }
 
             delCostEl.innerText = cost.toLocaleString() + " ֏";
-            updateCartTotal();
+            window.updateCartTotal();
         };
 
         window.updateCartTotal = () => {
@@ -413,7 +433,7 @@
             setTimeout(() => flyingImg.remove(), 800);
             const existing = cart.find(item => item.id === id);
             if (existing) existing.qty++; else cart.push({ id, name, price, img, qty: 1 });
-            updateCartCounter();
+            window.updateCartCounter();
         };
 
         window.updateCartCounter = () => {
@@ -424,18 +444,18 @@
             singleProductOrder = { id, name, price, img, qty: 1 };
             document.getElementById('modal-title').innerText = "Արագ Պատվեր";
             document.getElementById('cart-items').innerHTML = `<div class="flex items-center gap-3 bg-white/5 p-3 rounded-2xl border border-white/20"><img src="${img}" class="w-14 h-14 object-cover rounded-xl"><div><div class="text-[13px] font-bold">${name}</div><div class="text-[#ff00de] text-[12px] font-black">${price.toLocaleString()} ֏</div></div></div>`;
-            updateCartTotal();
+            window.updateCartTotal();
             document.getElementById('cart-modal').classList.remove('hidden');
         };
 
         window.openCart = () => {
             singleProductOrder = null;
             document.getElementById('modal-title').innerText = "Զամբյուղ";
-            renderCartItems();
+            window.renderCartItems();
             document.getElementById('cart-modal').classList.remove('hidden');
         };
 
-        function renderCartItems() {
+        window.renderCartItems = () => {
             const container = document.getElementById('cart-items');
             if(cart.length === 0) {
                 container.innerHTML = `<p class="text-center text-gray-500 py-10">Զամբյուղը դատարկ է</p>`;
@@ -454,13 +474,13 @@
                         </div>
                     </div>`).join('');
             }
-            updateCartTotal();
+            window.updateCartTotal();
         }
 
         window.changeQty = (idx, delta) => {
             cart[idx].qty += delta; if (cart[idx].qty <= 0) cart.splice(idx, 1);
-            renderCartItems();
-            updateCartCounter();
+            window.renderCartItems();
+            window.updateCartCounter();
         };
 
         window.handleOrderSubmission = async () => {
@@ -470,7 +490,7 @@
             const addr = document.getElementById('order-address').value.trim();
             const phone = document.getElementById('order-phone').value.trim();
 
-            if(!fio || !region || !delType || !addr || !phone) { showStatus('error', 'Ուշադրություն', 'Լրացրեք բոլոր դաշտերը։'); return; }
+            if(!fio || !region || !delType || !addr || !phone) { window.showStatus('error', 'Ուշադրություն', 'Լրացրեք բոլոր դաշտերը։'); return; }
             
             let items = singleProductOrder ? [singleProductOrder] : cart;
             let subtotal = items.reduce((sum, i) => sum + (i.price * i.qty), 0);
@@ -486,10 +506,10 @@
                     body: JSON.stringify({ chat_id: TG_CHAT_ID, text: message, parse_mode: 'Markdown' })
                 });
                 if(res.ok) {
-                    if(!singleProductOrder) { cart = []; updateCartCounter(); }
-                    closeCart(); showStatus('success', 'Պատվերը Գրանցված է', 'Մեր մասնագետը շուտով կկապնվի Ձեզ հետ։');
+                    if(!singleProductOrder) { cart = []; window.updateCartCounter(); }
+                    window.closeCart(); window.showStatus('success', 'Պատվերը Գրանցված է', 'Մեր մասնագետը շուտով կկապնվի Ձեզ հետ։');
                 }
-            } catch(e) { showStatus('error', 'Սխալ', 'Կապի խափանում։'); }
+            } catch(e) { window.showStatus('error', 'Սխալ', 'Կապի խափանում։'); }
         };
 
         window.showPage = (p) => {
@@ -497,7 +517,7 @@
             document.getElementById(`page-${p}`).classList.add('active-page');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             document.getElementById(`nav-${p}`).classList.add('active');
-            if(isAdmin){ 
+            if(window.isAdmin){ 
                 document.getElementById('admin-add-product')?.classList.toggle('hidden', p!=='shop'); 
                 document.getElementById('admin-add-news')?.classList.toggle('hidden', p!=='news'); 
             }
@@ -550,7 +570,7 @@
             if(!currentIds.includes(id)) {
                 currentIds.unshift(id); if(currentIds.length > 3) currentIds.pop();
                 await updateDoc(doc(db,"settings","contact"), { offerIds: currentIds.join(',') });
-                alert("Ավելացվեց օրվա առաջարկների մեջ"); hideForms();
+                alert("Ավելացվեց օրվա առաջարկների մեջ"); window.hideForms();
             }
         };
 
@@ -565,7 +585,7 @@
                 tiktok: document.getElementById('set-tiktok').value, 
                 tg: document.getElementById('set-tg').value
             }); 
-            hideForms(); 
+            window.hideForms(); 
         };
 
         window.saveProduct = async () => {
@@ -578,23 +598,46 @@
                 img5: document.getElementById('p-img5').value, date: new Date() 
             }; 
             if(editingId) await updateDoc(doc(db,"products",editingId),data); else await addDoc(collection(db,"products"),data); 
-            hideForms(); 
+            window.hideForms(); 
         };
 
         window.saveNews = async () => { 
             const data = { text: document.getElementById('n-text').value, media: document.getElementById('n-media').value, date: new Date() }; 
             if(editingId) await updateDoc(doc(db,"news",editingId),data); else await addDoc(collection(db,"news"),data); 
-            hideForms(); 
+            window.hideForms(); 
         };
 
         window.addCategory = async () => { 
             const n = document.getElementById('new-cat-name').value; 
-            if(n){ await setDoc(doc(db,"settings","categories"), {list:[...categories.filter(c=>c!=='Բոլորը'), n]}); showForm('categories'); } 
+            if(n){ await setDoc(doc(db,"settings","categories"), {list:[...categories.filter(c=>c!=='Բոլորը'), n]}); window.showForm('categories'); } 
         };
-        window.removeCategory = async (n) => { await setDoc(doc(db,"settings","categories"), {list:categories.filter(c=>c!=='Բոլորը' && c!==n)}); showForm('categories'); };
+        window.removeCategory = async (n) => { await setDoc(doc(db,"settings","categories"), {list:categories.filter(c=>c!=='Բոլորը' && c!==n)}); window.showForm('categories'); };
         window.hideForms = () => { document.getElementById('admin-forms-box').classList.add('hidden'); document.getElementById('add-btn-container').classList.remove('hidden'); };
-        window.login = async () => { const p = document.getElementById('pass').value; const d = await getDoc(doc(db,"admin","auth")); if(d.exists() && d.data().password === p){ sessionStorage.setItem('is_admin','true'); location.reload(); } };
-        window.logout = () => { sessionStorage.clear(); location.reload(); };
+        
+        // New Login Logic
+        window.login = async () => { 
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const btnText = document.getElementById('login-btn-text');
+            
+            if(!email || !pass) return alert("Լրացրեք բոլոր դաշտերը");
+            
+            btnText.innerText = "ՄՈՒՏՔ...";
+            try {
+                await signInWithEmailAndPassword(auth, email, pass);
+                window.closeLogin();
+            } catch (error) {
+                alert("Սխալ տվյալներ");
+            } finally {
+                btnText.innerText = "ՄՈՒՏՔ";
+            }
+        };
+
+        window.logout = async () => { 
+            await signOut(auth);
+            location.reload();
+        };
+
         window.openLogin = () => document.getElementById('login-modal').classList.remove('hidden');
         window.closeLogin = () => document.getElementById('login-modal').classList.add('hidden');
         window.closeCart = () => document.getElementById('cart-modal').classList.add('hidden');
@@ -602,35 +645,31 @@
         window.showStatus = (type, title, text) => { const t = document.getElementById('status-tablet'); document.getElementById('status-icon').innerText = type==='success'?'✅':'⚠️'; document.getElementById('status-title').innerText=title; document.getElementById('status-text').innerText=text; t.style.display='flex'; };
 
         window.renderCategoryBar = () => { const bar = document.getElementById('category-bar'); if(bar) bar.innerHTML = categories.map(cat => `<button onclick="filterCat('${cat}', this)" class="cat-btn ${currentCategory === cat ? 'active' : ''} text-[10px] font-black uppercase">${cat}</button>`).join(''); };
-        window.filterCat = (cat, btn) => { currentCategory = cat; renderProducts(); renderCategoryBar(); };
-        window.renderProducts = () => { const grid = document.getElementById('product-grid'); if(grid && window.allProductsList) { grid.innerHTML = window.allProductsList.filter(p => currentCategory === 'Բոլորը' || p.data.category === currentCategory).map(p => createProductCard(p.id, p.data)).join(''); } };
+        window.filterCat = (cat, btn) => { currentCategory = cat; window.renderProducts(); window.renderCategoryBar(); };
+        
+        window.renderProducts = (searchQuery = "") => { 
+            const grid = document.getElementById('product-grid'); 
+            if(grid && window.allProductsList) { 
+                let filtered = window.allProductsList.filter(p => currentCategory === 'Բոլորը' || p.data.category === currentCategory);
+                if(searchQuery) filtered = filtered.filter(p => p.data.name.toLowerCase().includes(searchQuery));
+                grid.innerHTML = filtered.length === 0 ? `<div class="col-span-full text-center py-20 text-gray-500">Ոչինչ չգտնվեց...</div>` : filtered.map(p => window.createProductCard(p.id, p.data)).join(''); 
+            } 
+        };
         
         window.createProductCard = (id, p, isOffer = false) => {
             let finalPrice = p.sale > 0 ? p.sale : p.price;
             let currentDiscount = (p.sale > 0 && p.price > 0) ? Math.round(((p.price - p.sale) / p.price) * 100) : 0;
             if(isOffer && p.price > 0) { finalPrice = Math.floor(finalPrice * 0.9); currentDiscount += 10; }
             
-            // Զեղչված գնի լոգիկա
-            let priceHtml = "";
-            if(p.sale > 0 && p.price > 0) {
-                priceHtml = `
-                    <div class="flex flex-col">
-                        <span class="text-gray-500 line-through text-[10px] decoration-red-500">${p.price.toLocaleString()} ֏</span>
-                        <span class="text-[#ff00de] font-black">${finalPrice.toLocaleString()} ֏</span>
-                    </div>`;
-            } else {
-                priceHtml = p.price > 0 ? `<div class="text-[#ff00de] font-black mt-1">${finalPrice.toLocaleString()} ֏</div>` : `<span class="text-white bg-[#bc13fe] px-2 py-0.5 rounded-lg text-[9px] font-bold">ՊԱՏՎԵՐՈՎ</span>`;
-            }
+            let priceHtml = p.sale > 0 && p.price > 0 ? `<div class="flex flex-col"><span class="text-gray-500 line-through text-[10px] decoration-red-500">${p.price.toLocaleString()} ֏</span><span class="text-[#ff00de] font-black">${finalPrice.toLocaleString()} ֏</span></div>` : (p.price > 0 ? `<div class="text-[#ff00de] font-black mt-1">${finalPrice.toLocaleString()} ֏</div>` : `<span class="text-white bg-[#bc13fe] px-2 py-0.5 rounded-lg text-[9px] font-bold">ՊԱՏՎԵՐՈՎ</span>`);
 
-            return `<div class="product-card"><div class="product-inner"><div onclick='openDetails("${id}", ${JSON.stringify({...p, finalPrice, isOffer})})' class="cursor-pointer"><div class="relative aspect-square rounded-2xl overflow-hidden bg-white mb-3 flex items-center justify-center">${currentDiscount > 0 ? `<div class="absolute top-2 left-2 z-10 bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded-lg">-${currentDiscount}%</div>` : ''}<img src="${p.img1}" class="w-full h-full object-contain"></div><h3 class="text-[12px] font-bold h-8 line-clamp-2">${p.name}</h3>${priceHtml}${p.gift ? `<div class="gift-tag"><i class="fas fa-gift"></i> ${p.gift}</div>` : ''}</div><div class="flex gap-2 mt-3"><button onclick="openDirectOrder('${id}', '${p.name.replace(/'/g,"")}', ${finalPrice}, '${p.img1}')" class="btn-order flex-grow py-2 rounded-xl text-[10px] font-black uppercase text-white">Պատվիրել</button><button onclick="addToCart('${id}', '${p.name.replace(/'/g,"")}', ${finalPrice}, '${p.img1}', event)" class="btn-cart-small"><i class="fas fa-cart-plus"></i></button></div>${isAdmin && !isOffer ? `<div class="flex justify-between gap-2 mt-2 pt-2 border-t border-white/5"><button onclick='editProduct("${id}", ${JSON.stringify(p)})' class="text-[9px] text-[#bc13fe]">Փոխել</button><button onclick="deleteDocItem('products','${id}')" class="text-[9px] text-red-500">Ջնջել</button></div>` : ''}</div></div>`;
+            return `<div class="product-card"><div class="product-inner"><div onclick='openDetails("${id}", ${JSON.stringify({...p, finalPrice, isOffer})})' class="cursor-pointer"><div class="relative aspect-square rounded-2xl overflow-hidden bg-white mb-3 flex items-center justify-center">${currentDiscount > 0 ? `<div class="absolute top-2 left-2 z-10 bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded-lg">-${currentDiscount}%</div>` : ''}<img src="${p.img1}" class="w-full h-full object-contain"></div><h3 class="text-[12px] font-bold h-8 line-clamp-2">${p.name}</h3>${priceHtml}${p.gift ? `<div class="gift-tag"><i class="fas fa-gift"></i> ${p.gift}</div>` : ''}</div><div class="flex gap-2 mt-3"><button onclick="openDirectOrder('${id}', '${p.name.replace(/'/g,"")}', ${finalPrice}, '${p.img1}')" class="btn-order flex-grow py-2 rounded-xl text-[10px] font-black uppercase text-white">Պատվիրել</button><button onclick="addToCart('${id}', '${p.name.replace(/'/g,"")}', ${finalPrice}, '${p.img1}', event)" class="btn-cart-small"><i class="fas fa-cart-plus"></i></button></div>${window.isAdmin && !isOffer ? `<div class="flex justify-between gap-2 mt-2 pt-2 border-t border-white/5"><button onclick='editProduct("${id}", ${JSON.stringify(p)})' class="text-[9px] text-[#bc13fe]">Փոխել</button><button onclick="deleteDocItem('products','${id}')" class="text-[9px] text-red-500">Ջնջել</button></div>` : ''}</div></div>`;
         };
 
         window.updateDailyOffers = () => {
             const offerGrid = document.getElementById('daily-offer-grid');
             if(!offerGrid || !window.allProductsList || window.allProductsList.length === 0) return;
-            
             let ids = contacts.offerIds ? contacts.offerIds.split(',').map(i => i.trim()).filter(i => i !== "") : [];
-            
             if(ids.length === 0) {
                 const today = new Date().toDateString();
                 let stored = JSON.parse(localStorage.getItem('daily_offer_ids'));
@@ -641,47 +680,22 @@
                 }
                 ids = stored;
             }
-            
-            offerGrid.innerHTML = window.allProductsList.filter(p => ids.includes(p.id)).map(p => createProductCard(p.id, p.data, true)).join('');
+            offerGrid.innerHTML = window.allProductsList.filter(p => ids.includes(p.id)).map(p => window.createProductCard(p.id, p.data, true)).join('');
         };
 
         window.openDetails = (id, p) => {
             const imgs = [p.img1, p.img2, p.img3, p.img4, p.img5].filter(i => i && i.trim() !== "");
             const body = document.getElementById('details-content-body');
             const priceVal = p.finalPrice || (p.sale > 0 ? p.sale : p.price);
-            
-            // Զեղչված գինը նաև մոդալ պատուհանում
-            let priceDetailHtml = "";
-            if(p.sale > 0 && p.price > 0) {
-                priceDetailHtml = `
-                    <div class="flex items-baseline gap-3 mb-4">
-                        <div class="text-3xl font-black text-[#ff00de]">${priceVal.toLocaleString()} ֏</div>
-                        <div class="text-lg text-gray-500 line-through decoration-red-500">${p.price.toLocaleString()} ֏</div>
-                    </div>`;
-            } else {
-                priceDetailHtml = `<div class="text-3xl font-black text-[#ff00de] mb-4">${priceVal.toLocaleString()} ֏</div>`;
-            }
+            let priceDetailHtml = p.sale > 0 && p.price > 0 ? `<div class="flex items-baseline gap-3 mb-4"><div class="text-3xl font-black text-[#ff00de]">${priceVal.toLocaleString()} ֏</div><div class="text-lg text-gray-500 line-through decoration-red-500">${p.price.toLocaleString()} ֏</div></div>` : `<div class="text-3xl font-black text-[#ff00de] mb-4">${priceVal.toLocaleString()} ֏</div>`;
 
-            body.innerHTML = `
-                <div class="relative aspect-square bg-white rounded-3xl overflow-hidden mb-6">
-                    <div id="modal-slider" class="slider-container h-full">
-                        ${imgs.map(i => `<img src="${i}" class="w-full h-full object-contain flex-shrink-0">`).join('')}
-                    </div>
-                    ${imgs.length > 1 ? `<div class="absolute inset-0 flex justify-between items-center px-2 pointer-events-none"><button onclick="moveMSlider(-1)" class="pointer-events-auto bg-black/30 w-10 h-10 rounded-full">←</button><button onclick="moveMSlider(1)" class="pointer-events-auto bg-black/30 w-10 h-10 rounded-full">→</button></div>` : ''}
-                </div>
-                <h2 class="text-2xl font-black text-[#bc13fe] mb-2 uppercase">${p.name}</h2>
-                ${priceDetailHtml}
-                <p class="text-gray-400 text-sm mb-6">${p.desc || ''}</p>
-                <div class="flex flex-col gap-3">
-                    <button onclick="openDirectOrder('${id}', '${p.name.replace(/'/g,"")}', ${priceVal}, '${p.img1}')" class="btn-brand w-full py-5 rounded-3xl font-black uppercase">Պատվիրել</button>
-                    <button onclick="closeDetails()" class="w-full py-4 rounded-3xl border border-white/10 text-gray-400 uppercase text-xs font-bold tracking-widest">Փակել</button>
-                </div>`;
+            body.innerHTML = `<div class="relative aspect-square bg-white rounded-3xl overflow-hidden mb-6"><div id="modal-slider" class="slider-container h-full">${imgs.map(i => `<img src="${i}" class="w-full h-full object-contain flex-shrink-0">`).join('')}</div>${imgs.length > 1 ? `<div class="absolute inset-0 flex justify-between items-center px-2 pointer-events-none"><button onclick="moveMSlider(-1)" class="pointer-events-auto bg-black/30 w-10 h-10 rounded-full">←</button><button onclick="moveMSlider(1)" class="pointer-events-auto bg-black/30 w-10 h-10 rounded-full">→</button></div>` : ''}</div><h2 class="text-2xl font-black text-[#bc13fe] mb-2 uppercase">${p.name}</h2>${priceDetailHtml}<p class="text-gray-400 text-sm mb-6">${p.desc || ''}</p><div class="flex flex-col gap-3"><button onclick="openDirectOrder('${id}', '${p.name.replace(/'/g,"")}', ${priceVal}, '${p.img1}')" class="btn-brand w-full py-5 rounded-3xl font-black uppercase">Պատվիրել</button><button onclick="closeDetails()" class="w-full py-4 rounded-3xl border border-white/10 text-gray-400 uppercase text-xs font-bold tracking-widest">Փակել</button></div>`;
             window.mIdx = 0; document.getElementById('details-modal').classList.remove('hidden');
         };
 
         window.moveMSlider = (dir) => { const s = document.getElementById('modal-slider'); window.mIdx = (window.mIdx + dir + s.children.length) % s.children.length; s.style.transform = `translateX(-${window.mIdx * 100}%)`; };
         window.closeDetails = () => document.getElementById('details-modal').classList.add('hidden');
-        window.editProduct = (id, p) => showForm('product', {id, ...p});
+        window.editProduct = (id, p) => window.showForm('product', {id, ...p});
         window.deleteDocItem = async (c, id) => { if(confirm("Ջնջե՞լ")) await deleteDoc(doc(db, c, id)); };
 
         setInterval(() => {
