@@ -316,6 +316,42 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
+        // --- ԱՎՏՈՄԱՏ ԼՑՆՈՂ ՍԿՐԻՊՏ (ԳՈՐԾՈՒՄ Է ՄԵԿ ԱՆԳԱՄ) ---
+        async function uploadInventory() {
+            const check = localStorage.getItem('inventory_uploaded');
+            if(check) return; // Եթե արդեն լցվել է, այլևս չի աշխատի
+
+            const productsToUpload = [
+                { category: "Apple Watch AMOLED", name: "Apple Watch 11", price: 29000, sale: 35000, gift: "🎁 2 գոտի + Adapter", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/89/b9/89b91e9f99e19b9644e52b6f193709e2/250425160059071605.webp", desc: "AMOLED էկրան, բարձր որակ", date: new Date() },
+                { category: "Apple Watch AMOLED", name: "Apple Watch Ultra 3", price: 29000, sale: 39000, gift: "🎁 2 գոտի + Adapter", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/78/f4/78f43bd18c2715e9fd9a14bf94179486/250425160032319751.webp", desc: "Ultra դիզայն", date: new Date() },
+                { category: "Apple Watch TFT", name: "Apple Watch 11 TFT", price: 15000, sale: 0, gift: "🎁 Միլանյան գոտի + Adapter", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/4f/13/4f1377f33659ba9a1d4bdb54600b9c46/250425160028127042.webp", desc: "Բյուջետային մոդել", date: new Date() },
+                { category: "Apple Watch TFT", name: "Apple Watch Ultra 3 TFT", price: 20000, sale: 0, gift: "🎁 Միլանյան գոտի + Adapter", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/98/90/9890f72f95b49b0081a0fa8703a87a4a/250915140013114513.webp", desc: "Ultra տեսք, TFT էկրան", date: new Date() },
+                { category: "AirPods Series", name: "AirPods Pro 2", price: 7500, sale: 0, img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/db/e6/dbe648eed9ce6519af590326ba2bfd35/250408160013777696.webp", desc: "Premium ձայն", date: new Date() },
+                { category: "AirPods Series", name: "AirPods Pro 2 ANC", price: 12000, sale: 0, gift: "🎁 Adapter + պաշտպանիչ քեյս", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/db/e6/dbe648eed9ce6519af590326ba2bfd35/250408160013777696.webp", desc: "Աղմկախշշոցի մարում", date: new Date() },
+                { category: "AirPods Series", name: "AirPods 4", price: 9000, sale: 0, img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/c5/06/c5063b56e7634a6d343fa03328d12c61/250612160025667198.webp", desc: "AirPods 4-րդ սերունդ", date: new Date() },
+                { category: "AirPods Series", name: "AirPods 4 ANC", price: 14900, sale: 0, gift: "🎁 Adapter + պաշտպանիչ քեյս", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/c5/06/c5063b56e7634a6d343fa03328d12c61/250612160025667198.webp", desc: "AirPods 4 աղմկախշշոցի մարմամբ", date: new Date() },
+                { category: "AirPods Series", name: "AirPods Pro 3 (Airoha)", price: 18000, sale: 0, gift: "🎁 20W Adapter + լիցքավորման լար", img1: "https://prod-cdn.prod.asbis.io/s3size/el:t/rt:fill/w:512/plain/s3://cms/product/db/e6/dbe648eed9ce6519af590326ba2bfd35/250408160013777696.webp", desc: "Լավագույն չիպսեթ", date: new Date() },
+                { category: "Dyson Series", name: "Dyson HS05 — Malaysia", price: 79000, sale: 0, gift: "🎁 Սանր կամ պայուսակ", img1: "https://eldorado.am/media/catalog/product/cache/b636eac9f5e866652b5cbe8cee86d97c/d/y/dyson_airwrap_multi-styler_complete_nickel_copper.jpg", desc: "Airwrap Multi-styler", date: new Date() },
+                { category: "Dyson Series", name: "Dyson HT01 + Case", price: 69000, sale: 0, gift: "🎁 Dyson տոպրակ", img1: "https://eldorado.am/media/catalog/product/cache/b636eac9f5e866652b5cbe8cee86d97c/d/y/dyson_ht01_airstrait_prussian_blue.jpg", desc: "Airstrait Straightener", date: new Date() },
+                { category: "Dyson Series", name: "Dyson HT01 — Malaysia", price: 54900, sale: 0, gift: "🎁 Dyson տոպրակ", img1: "https://eldorado.am/media/catalog/product/cache/b636eac9f5e866652b5cbe8cee86d97c/d/y/dyson_ht01_airstrait_prussian_blue_3.jpg", desc: "Մալազիական արտադրություն", date: new Date() },
+                { category: "Dyson Series", name: "Dyson HS01 — Malaysia", price: 49000, sale: 65000, img1: "https://eldorado.am/media/catalog/product/cache/b636eac9f5e866652b5cbe8cee86d97c/d/y/dyson_ht01_ceramic_pink.jpg", desc: "Ceramic Pink edition", date: new Date() },
+                { category: "Dyson Series", name: "Dyson HS08/HS09 — Malaysia", price: 0, sale: 0, desc: "Պատվերով", img1: "https://eldorado.am/media/catalog/product/cache/f8f376667ef841560f3ecb714414579d/d/y/dyson-hs08-airwrap-ceramic-multi-styler-and-dryer-vinca-blue-topaz-eldroado_1.jpg", date: new Date() },
+                { category: "Dyson Series", name: "Dyson HS01 - Malaysia (v2)", price: 49000, sale: 65000, img1: "https://eldorado.am/media/catalog/product/cache/b636eac9f5e866652b5cbe8cee86d97c/d/y/dyson_airwrap_complete.jpg", desc: "Complete edition", date: new Date() }
+            ];
+
+            for (const item of productsToUpload) {
+                await addDoc(collection(db, "products"), item);
+            }
+            
+            // Ավելացնենք նաև հիմնական բաժինները
+            await setDoc(doc(db,"settings","categories"), {list:["Apple Watch AMOLED", "Apple Watch TFT", "AirPods Series", "Dyson Series"]});
+
+            localStorage.setItem('inventory_uploaded', 'true');
+            alert("Բոլոր 15 ապրանքները և բաժինները հաջողությամբ ավելացվեցին Firebase!");
+            location.reload(); // Թարմացնենք, որ տեսնենք արդյունքը
+        }
+        uploadInventory(); // Կանչում ենք ֆունկցիան
+
         let contacts = { ws: "", vb: "", call: "", msg: "", tiktok: "", insta: "", tg: "", offerIds: "", extraText: "", carPrice: 0, postPrice: 0 };
         let categories = ['Բոլորը'];
         let currentCategory = 'Բոլորը';
@@ -614,14 +650,11 @@
         window.removeCategory = async (n) => { await setDoc(doc(db,"settings","categories"), {list:categories.filter(c=>c!=='Բոլորը' && c!==n)}); window.showForm('categories'); };
         window.hideForms = () => { document.getElementById('admin-forms-box').classList.add('hidden'); document.getElementById('add-btn-container').classList.remove('hidden'); };
         
-        // New Login Logic
         window.login = async () => { 
             const email = document.getElementById('login-email').value;
             const pass = document.getElementById('login-pass').value;
             const btnText = document.getElementById('login-btn-text');
-            
             if(!email || !pass) return alert("Լրացրեք բոլոր դաշտերը");
-            
             btnText.innerText = "ՄՈՒՏՔ...";
             try {
                 await signInWithEmailAndPassword(auth, email, pass);
@@ -660,9 +693,7 @@
             let finalPrice = p.sale > 0 ? p.sale : p.price;
             let currentDiscount = (p.sale > 0 && p.price > 0) ? Math.round(((p.price - p.sale) / p.price) * 100) : 0;
             if(isOffer && p.price > 0) { finalPrice = Math.floor(finalPrice * 0.9); currentDiscount += 10; }
-            
             let priceHtml = p.sale > 0 && p.price > 0 ? `<div class="flex flex-col"><span class="text-gray-500 line-through text-[10px] decoration-red-500">${p.price.toLocaleString()} ֏</span><span class="text-[#ff00de] font-black">${finalPrice.toLocaleString()} ֏</span></div>` : (p.price > 0 ? `<div class="text-[#ff00de] font-black mt-1">${finalPrice.toLocaleString()} ֏</div>` : `<span class="text-white bg-[#bc13fe] px-2 py-0.5 rounded-lg text-[9px] font-bold">ՊԱՏՎԵՐՈՎ</span>`);
-
             return `<div class="product-card"><div class="product-inner"><div onclick='openDetails("${id}", ${JSON.stringify({...p, finalPrice, isOffer})})' class="cursor-pointer"><div class="relative aspect-square rounded-2xl overflow-hidden bg-white mb-3 flex items-center justify-center">${currentDiscount > 0 ? `<div class="absolute top-2 left-2 z-10 bg-red-600 text-white text-[9px] font-black px-2 py-1 rounded-lg">-${currentDiscount}%</div>` : ''}<img src="${p.img1}" class="w-full h-full object-contain"></div><h3 class="text-[12px] font-bold h-8 line-clamp-2">${p.name}</h3>${priceHtml}${p.gift ? `<div class="gift-tag"><i class="fas fa-gift"></i> ${p.gift}</div>` : ''}</div><div class="flex gap-2 mt-3"><button onclick="openDirectOrder('${id}', '${p.name.replace(/'/g,"")}', ${finalPrice}, '${p.img1}')" class="btn-order flex-grow py-2 rounded-xl text-[10px] font-black uppercase text-white">Պատվիրել</button><button onclick="addToCart('${id}', '${p.name.replace(/'/g,"")}', ${finalPrice}, '${p.img1}', event)" class="btn-cart-small"><i class="fas fa-cart-plus"></i></button></div>${window.isAdmin && !isOffer ? `<div class="flex justify-between gap-2 mt-2 pt-2 border-t border-white/5"><button onclick='editProduct("${id}", ${JSON.stringify(p)})' class="text-[9px] text-[#bc13fe]">Փոխել</button><button onclick="deleteDocItem('products','${id}')" class="text-[9px] text-red-500">Ջնջել</button></div>` : ''}</div></div>`;
         };
 
@@ -688,7 +719,6 @@
             const body = document.getElementById('details-content-body');
             const priceVal = p.finalPrice || (p.sale > 0 ? p.sale : p.price);
             let priceDetailHtml = p.sale > 0 && p.price > 0 ? `<div class="flex items-baseline gap-3 mb-4"><div class="text-3xl font-black text-[#ff00de]">${priceVal.toLocaleString()} ֏</div><div class="text-lg text-gray-500 line-through decoration-red-500">${p.price.toLocaleString()} ֏</div></div>` : `<div class="text-3xl font-black text-[#ff00de] mb-4">${priceVal.toLocaleString()} ֏</div>`;
-
             body.innerHTML = `<div class="relative aspect-square bg-white rounded-3xl overflow-hidden mb-6"><div id="modal-slider" class="slider-container h-full">${imgs.map(i => `<img src="${i}" class="w-full h-full object-contain flex-shrink-0">`).join('')}</div>${imgs.length > 1 ? `<div class="absolute inset-0 flex justify-between items-center px-2 pointer-events-none"><button onclick="moveMSlider(-1)" class="pointer-events-auto bg-black/30 w-10 h-10 rounded-full">←</button><button onclick="moveMSlider(1)" class="pointer-events-auto bg-black/30 w-10 h-10 rounded-full">→</button></div>` : ''}</div><h2 class="text-2xl font-black text-[#bc13fe] mb-2 uppercase">${p.name}</h2>${priceDetailHtml}<p class="text-gray-400 text-sm mb-6">${p.desc || ''}</p><div class="flex flex-col gap-3"><button onclick="openDirectOrder('${id}', '${p.name.replace(/'/g,"")}', ${priceVal}, '${p.img1}')" class="btn-brand w-full py-5 rounded-3xl font-black uppercase">Պատվիրել</button><button onclick="closeDetails()" class="w-full py-4 rounded-3xl border border-white/10 text-gray-400 uppercase text-xs font-bold tracking-widest">Փակել</button></div>`;
             window.mIdx = 0; document.getElementById('details-modal').classList.remove('hidden');
         };
